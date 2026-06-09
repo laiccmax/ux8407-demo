@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>筆電接收端 - UX8407 Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+    .status-label { font-size: 13px; letter-spacing: 4px; color: #444; text-transform: uppercase; }
+    .conn-badge {
+      font-size: 11px; letter-spacing: 2px; padding: 4px 12px;
+      border-radius: 20px; background: #1a1a1a; color: #555;
+      transition: all 0.3s;
+    }
+    .conn-badge.ok { background: #0a2a1a; color: #00cc77; }
+    .conn-badge.err { background: #2a0a0a; color: #cc4444; }
+    .ring-wrap { position: relative; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center; }
+    .ring {
+      width: 160px; height: 160px; border-radius: 50%;
+      border: 1.5px solid #222;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .ring.active {
+      border-color: #00ff88;
+      box-shadow: 0 0 50px #00ff8844;
+    }
+    .ring-label { font-size: 12px; letter-spacing: 3px; color: #333; transition: color 0.3s; }
+    .ring.active .ring-label { color: #00ff88; }
+    .message { font-size: 16px; letter-spacing: 2px; color: #333; min-height: 24px; transition: color 0.3s; }
+    .message.active { color: #00ff88; }
+    @keyframes ripple { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(2.2); opacity: 0; } }
+    .ripple {
+      position: absolute; width: 160px; height: 160px; border-radius: 50%;
+      border: 1.5px solid #00ff88;
+      animation: ripple 1.2s ease-out forwards;
+      pointer-events: none;
+    }
+    .log { font-size: 11px; color: #333; font-family: 'Courier New', monospace; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="status-label">LAPTOP RECEIVER</div>
+  <div class="conn-badge" id="badge">連線中...</div>
+  <div class="ring-wrap">
+    <div class="ring" id="ring">
+      <span class="ring-label" id="ringLabel">WAITING</span>
+    </div>
+  </div>
+  <div class="message" id="message">等待手機訊號中...</div>
+  <div class="log" id="log"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    // Firebase 設定
+    const firebaseConfig = {
+      databaseURL: "https://ux8407-demo-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const badge = document.getElementById('badge');
+    const ring = document.getElementById('ring');
+    const ringLabel = document.getElementById('ringLabel');
+    const message = document.getElementById('message');
+    const log = document.getElementById('log');
+
+    // 偵測連線狀態
+    db.ref('.info/connected').on('value', snap => {
+      const ok = snap.val() === true;
+      badge.textContent = ok ? '● Firebase 已連線' : '● 連線失敗';
+      badge.className = 'conn-badge ' + (ok ? 'ok' : 'err');
+      log.textContent = ok ? '監聽中，等待訊號...' : '無法連線，請檢查網路';
+    });
+
+    // 監聽手機發來的訊號
+    db.ref('signal').on('value', snap => {
+      const val = snap.val();
+      if (!val) return;
+
+      // 觸發視覺效果
+      ring.classList.add('active');
+      ringLabel.textContent = 'SIGNAL';
+      message.textContent = '✦ 連線成功！收到手機訊號';
+      message.classList.add('active');
+
+      // 波紋動畫
+      const ripple = document.createElement('div');
+      ripple.className = 'ripple';
+      document.querySelector('.ring-wrap').appendChild(ripple);
+
+      const now = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+      log.textContent = now + '  收到訊號！';
+
+      // 1.8 秒後恢復等待狀態
+      setTimeout(() => {
+        ring.classList.remove('active');
+        ringLabel.textContent = 'WAITING';
+        message.textContent = '等待手機訊號中...';
+        message.classList.remove('active');
+        ripple.remove();
+      }, 1800);
+    });
+  </script>
+</body>
+</html>

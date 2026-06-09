@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手機發送端 - UX8407 Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 24px;
+    }
+    .status-label { font-size: 13px; letter-spacing: 4px; color: #444; text-transform: uppercase; }
+    .conn-badge {
+      font-size: 11px; letter-spacing: 2px; padding: 4px 12px;
+      border-radius: 20px; background: #1a1a1a; color: #555;
+      transition: all 0.3s;
+    }
+    .conn-badge.ok { background: #0a2a1a; color: #00cc77; }
+    .conn-badge.err { background: #2a0a0a; color: #cc4444; }
+    .send-btn {
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      border: 1.5px solid #333;
+      background: transparent;
+      color: #555;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+    .send-btn:active {
+      background: #001a0d;
+      border-color: #00ff88;
+      color: #00ff88;
+      transform: scale(0.95);
+    }
+    .feedback { font-size: 13px; letter-spacing: 2px; color: #333; min-height: 20px; transition: color 0.3s; }
+    .feedback.sent { color: #00ff88; }
+    .log { font-size: 11px; color: #333; font-family: 'Courier New', monospace; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="status-label">PHONE CONTROLLER</div>
+  <div class="conn-badge" id="badge">連線中...</div>
+  <button class="send-btn" id="sendBtn" onclick="sendSignal()">SEND</button>
+  <div class="feedback" id="feedback">點擊按鈕發送訊號</div>
+  <div class="log" id="log"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    // Firebase 設定
+    const firebaseConfig = {
+      databaseURL: "https://ux8407-demo-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const badge = document.getElementById('badge');
+    const feedback = document.getElementById('feedback');
+    const log = document.getElementById('log');
+
+    // 偵測連線狀態
+    db.ref('.info/connected').on('value', snap => {
+      const ok = snap.val() === true;
+      badge.textContent = ok ? '● Firebase 已連線' : '● 連線失敗';
+      badge.className = 'conn-badge ' + (ok ? 'ok' : 'err');
+      log.textContent = ok ? '已就緒，可以發送訊號' : '無法連線，請檢查網路';
+    });
+
+    // 發送訊號到 Firebase
+    function sendSignal() {
+      const ts = Date.now();
+      db.ref('signal').set(ts)
+        .then(() => {
+          feedback.textContent = '✦ 訊號已發送！';
+          feedback.className = 'feedback sent';
+          const now = new Date().toLocaleTimeString('zh-TW', {hour12: false});
+          log.textContent = now + '  發送成功';
+          setTimeout(() => {
+            feedback.textContent = '點擊按鈕發送訊號';
+            feedback.className = 'feedback';
+          }, 1500);
+        })
+        .catch(e => {
+          feedback.textContent = '發送失敗：' + e.message;
+          log.textContent = '錯誤：' + e.message;
+        });
+    }
+  </script>
+</body>
+</html>
